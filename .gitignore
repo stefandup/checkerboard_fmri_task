@@ -1,0 +1,15 @@
+/.venv/
+/.vscode/
+/.power_sh/
+/.codex/
+/temp/
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.csv
+**.log
+logs/
+temp/
+/build_output/
+build_log.txt
+*.ipynb

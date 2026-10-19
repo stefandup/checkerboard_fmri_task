@@ -1,0 +1,53 @@
+# Checkerboard fMRI task configuration.
+#
+# Lines marked REQUIRED are deliberately left unset: their values need to come from the
+# literature / your protocol, not from a default. The task refuses to start until every
+# REQUIRED value is filled in. Check the file with:
+#     checkerboard_fmri_task --check-config
+#
+# Units: seconds (_s), hertz (_hz), degrees of visual angle (_deg), centimetres (_cm).
+# Luminance values are digital grey levels from 0.0 (black) to 1.0 (white), NOT cd/m².
+
+[scanner]
+# pyglet key name the scanner sends as its trigger (LSHIFT = Left Shift).
+trigger_key = "LSHIFT"
+# Triggers discarded as dummy acquisitions. The task starts on trigger number
+# dummy_triggers + 1. Every trigger, including dummies, is logged.
+dummy_triggers = 5
+
+[paradigm]
+# Which block comes first: "on" (checkerboard) or "off" (fixation only).
+# first_block = ""            # REQUIRED
+# on_block_s = 0              # REQUIRED - duration of each ON block
+# off_block_s = 0             # REQUIRED - duration of each OFF block
+# total_duration_s = 0        # REQUIRED - task length, measured from the start trigger
+
+[stimulus]
+# Contrast reversals per second (one reversal = one black/white swap; a full
+# flicker cycle is two reversals).
+# reversal_rate_hz = 0        # REQUIRED
+# n_wedges = 0                # REQUIRED - angular segments (must be even)
+# n_rings = 0                 # REQUIRED - radial segments
+# inner_radius_deg = 0        # REQUIRED - radius of the blank centre
+# outer_radius_deg = 0        # REQUIRED - radius of the checkerboard
+# ring_spacing = ""           # REQUIRED - "linear" (equal widths) or "log" (scaled with eccentricity)
+# Michelson contrast of the checks around mean_luminance. 1.0 with a mean of 0.5 gives
+# black (0.0) and white (1.0) checks.
+contrast = 1.0
+mean_luminance = 0.5
+# background_luminance = 0   # REQUIRED - screen grey level during OFF blocks and around the checkerboard
+
+[fixation]
+# shape = ""                  # REQUIRED - "dot" or "cross"
+# size_deg = 0                # REQUIRED - dot diameter or cross arm length
+# color = [0.0, 0.0, 0.0]     # REQUIRED - RGB, each 0.0-1.0
+# line_width_deg = 0          # REQUIRED for "cross" only
+
+[display]
+# viewing_distance_cm = 0     # REQUIRED - eye to screen (via the mirror for a projector)
+# screen_width_cm = 0         # REQUIRED - width of the visible image on the screen
+# Optional: refresh rate the projector should run at. If set, the measured rate is
+# compared against it and a mismatch is logged as a warning.
+# expected_refresh_hz = 60
+# A frame interval longer than this many expected frame intervals counts as dropped.
+dropped_frame_factor = 1.5

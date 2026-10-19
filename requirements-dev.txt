@@ -1,0 +1,6 @@
+pyright
+ruff
+pytest
+pyinstaller
+mkdocs
+mkdocs-material

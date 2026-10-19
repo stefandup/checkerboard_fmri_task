@@ -1,0 +1,38 @@
+# !!! UNVERIFIED BEST-GUESS VALUES - FOR TESTING THE SOFTWARE ONLY !!!
+#
+# Do not collect data with this file. Values are typical-looking placeholders, not taken
+# from the literature or from your scanner/projector. Replace them in task_config.toml
+# once confirmed. Run with:
+#     checkerboard_fmri_task --config config\test_config_UNVERIFIED.toml
+
+[scanner]
+trigger_key = "LSHIFT"
+dummy_triggers = 5
+
+[paradigm]
+first_block = "off"
+on_block_s = 20.0
+off_block_s = 20.0
+total_duration_s = 200.0
+
+[stimulus]
+reversal_rate_hz = 7.5           # 8 is common, but 7.5 divides 60 Hz into whole frames
+n_wedges = 24
+n_rings = 10
+inner_radius_deg = 0.5
+outer_radius_deg = 8.0
+ring_spacing = "log"
+contrast = 1.0
+mean_luminance = 0.5
+background_luminance = 0.5
+
+[fixation]
+shape = "dot"
+size_deg = 0.3
+color = [1.0, 0.0, 0.0]
+
+[display]
+viewing_distance_cm = 60.0
+screen_width_cm = 53.0
+expected_refresh_hz = 60.0
+dropped_frame_factor = 1.5
