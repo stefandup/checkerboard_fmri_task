@@ -4,51 +4,56 @@
 # your scanner/projector before collecting data. Check the file with:
 #     checkerboard_fmri_task --check-config
 #
+# Each setting notes its suggested default as [default: ...]; copy that value back if an
+# edit causes trouble.
+#
 # Units: seconds (_s), hertz (_hz), degrees of visual angle (_deg), centimetres (_cm).
 # Luminance values are digital grey levels from 0.0 (black) to 1.0 (white), NOT cd/m².
 
 [scanner]
 # pyglet key name the scanner sends as its trigger (LSHIFT = Left Shift).
-trigger_key = "LSHIFT"
+trigger_key = "LSHIFT"          # [default: "LSHIFT"]
 # Triggers discarded as dummy acquisitions. The task starts on trigger number
-# dummy_triggers + 1. Every trigger, including dummies, is logged.
-dummy_triggers = 5
+# dummy_triggers + 1. Every trigger, including dummies, is logged. Verify against your
+# scanner protocol.
+dummy_triggers = 5              # [default: 5]
 
 [paradigm]
 # Which block comes first: "on" (checkerboard) or "off" (fixation only).
-first_block = "off"
-on_block_s = 20.0               # duration of each ON block
-off_block_s = 20.0              # duration of each OFF block
-total_duration_s = 200.0        # task length, measured from the start trigger
+first_block = "off"             # [default: "off"]
+on_block_s = 20.0               # duration of each ON block [default: 20.0]
+off_block_s = 20.0              # duration of each OFF block [default: 20.0]
+total_duration_s = 200.0        # task length, measured from the start trigger [default: 200.0]
 
 [stimulus]
 # Contrast reversals per second (one reversal = one black/white swap; a full
 # flicker cycle is two reversals). 7.5 divides 60 Hz into whole frames.
-reversal_rate_hz = 7.5
-n_wedges = 24                   # angular segments (must be even)
-n_rings = 10                    # radial segments
-inner_radius_deg = 0.5          # radius of the blank centre
-outer_radius_deg = 8.0          # radius of the checkerboard
-ring_spacing = "log"            # "linear" (equal widths) or "log" (scaled with eccentricity)
+reversal_rate_hz = 7.5          # [default: 7.5]
+n_wedges = 24                   # angular segments, must be even [default: 24]
+n_rings = 10                    # radial segments [default: 10]
+inner_radius_deg = 0.5          # radius of the blank centre [default: 0.5]
+outer_radius_deg = 8.0          # radius of the checkerboard [default: 8.0]
+ring_spacing = "log"            # "linear" (equal widths) or "log" (scaled with eccentricity) [default: "log"]
 # Michelson contrast of the checks around mean_luminance. 1.0 with a mean of 0.5 gives
 # black (0.0) and white (1.0) checks.
-contrast = 1.0
-mean_luminance = 0.5
-# Screen grey level during OFF blocks and around the checkerboard. 0.0 matches the
-# black checks (mean_luminance * (1 - contrast)).
-background_luminance = 0.0
+contrast = 1.0                  # [default: 1.0]
+mean_luminance = 0.5            # [default: 0.5]
+# Screen grey level during OFF blocks and around the checkerboard. Equal to
+# mean_luminance keeps the average screen luminance the same in ON and OFF blocks.
+# 0.0 would instead match the black checks (mean_luminance * (1 - contrast)).
+background_luminance = 0.5      # [default: 0.5]
 
 [fixation]
-shape = "dot"                   # "dot" or "cross"
-size_deg = 0.3                  # dot diameter or cross arm length
-color = [1.0, 0.0, 0.0]         # RGB, each 0.0-1.0
-# line_width_deg = 0.05         # required for "cross" only
+shape = "dot"                   # "dot" or "cross" [default: "dot"]
+size_deg = 0.3                  # dot diameter or cross arm length [default: 0.3]
+color = [1.0, 0.0, 0.0]         # RGB, each 0.0-1.0 [default: [1.0, 0.0, 0.0] (red)]
+# line_width_deg = 0.05         # required for "cross" only [default: 0.05]
 
 [display]
-viewing_distance_cm = 60.0      # eye to screen (via the mirror for a projector)
-screen_width_cm = 53.0          # width of the visible image on the screen
+viewing_distance_cm = 60.0      # eye to screen (via the mirror for a projector) [default: 60.0]
+screen_width_cm = 53.0          # width of the visible image on the screen [default: 53.0]
 # Optional: refresh rate the projector should run at. If set, the measured rate is
 # compared against it and a mismatch is logged as a warning.
-expected_refresh_hz = 60.0
+expected_refresh_hz = 60.0      # [default: 60.0]
 # A frame interval longer than this many expected frame intervals counts as dropped.
-dropped_frame_factor = 1.5
+dropped_frame_factor = 1.5      # [default: 1.5]

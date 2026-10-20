@@ -21,9 +21,9 @@ def test_black_and_white_luminances(config):
     assert config.stimulus.high_luminance == 1.0
 
 
-def test_shipped_config_is_valid_with_black_background():
+def test_shipped_config_is_valid_with_mean_grey_background():
     config = load_config(REPO_ROOT / "config" / "task_config.toml")
-    assert config.stimulus.background_luminance == config.stimulus.low_luminance == 0.0
+    assert config.stimulus.background_luminance == config.stimulus.mean_luminance == 0.5
 
 
 def test_unverified_test_config_is_valid():

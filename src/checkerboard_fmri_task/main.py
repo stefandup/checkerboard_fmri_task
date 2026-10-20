@@ -173,8 +173,9 @@ def main(
     except ConfigError as e:
         _exit_with_error(f"{config_path}\n{e}")
         return
+    console.print(f"Config: [bold]{escape(str(config_path.resolve()))}[/]")
+    _print_config(config)
     if check_config:
-        _print_config(config)
         console.print("[bold green]Configuration OK[/]")
         return
 
