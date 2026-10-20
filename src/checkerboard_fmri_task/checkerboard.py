@@ -40,10 +40,16 @@ def radial_checkerboard(
     return pattern
 
 
-def render_rgba(pattern: np.ndarray, low: float, high: float, inverted: bool) -> np.ndarray:
-    """Pattern to an RGBA uint8 image; OUTSIDE pixels are fully transparent."""
+def render_rgba(
+    pattern: np.ndarray, low: float, high: float, background: float, inverted: bool
+) -> np.ndarray:
+    """Pattern to an RGBA uint8 image; OUTSIDE pixels are transparent background.
+
+    OUTSIDE pixels also carry the background grey, so the corners and centre hole never
+    reverse with the checks, whether or not the renderer honours alpha.
+    """
     first, second = (high, low) if inverted else (low, high)
-    grey = np.where(pattern == 1, second, first)
+    grey = np.where(pattern == OUTSIDE, background, np.where(pattern == 1, second, first))
     rgba = np.zeros((*pattern.shape, 4), dtype=np.uint8)
     rgba[..., :3] = np.round(grey * 255).astype(np.uint8)[..., None]
     rgba[..., 3] = np.where(pattern == OUTSIDE, 0, 255)

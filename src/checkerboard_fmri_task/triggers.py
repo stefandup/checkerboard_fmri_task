@@ -22,6 +22,11 @@ class TriggerCounter:
     def started(self) -> bool:
         return self.start_time_s is not None
 
+    @property
+    def remaining_until_start(self) -> int:
+        """Triggers still to come before the task starts, counting the start trigger itself."""
+        return max(self.dummy_triggers + 1 - self.count, 0)
+
     def register(self, time_s: float) -> Trigger:
         self.count += 1
         interval = None if self._last_time_s is None else time_s - self._last_time_s

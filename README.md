@@ -6,9 +6,9 @@ standalone Windows program; the scanner PC needs no Python.
 
 ## Running a session
 
-1. Fill in every `REQUIRED` value in `task_config.toml` (in the install folder; the
-   installer adds a "config" desktop shortcut that opens it). The task refuses to start
-   until they're set.
+1. Check the values in `task_config.toml` (in the install folder; the installer adds a
+   "config" desktop shortcut that opens it). It ships with basic working defaults: confirm
+   them against your protocol and projector before collecting data.
 2. Start **Checkerboard fMRI Task** from the desktop. In the console window, enter the
    participant ID and pick the screen (projector) if there is more than one.
 3. The task measures the refresh rate (~2 s), then waits on a fixation screen. Start the
@@ -31,9 +31,25 @@ Command-line options (`checkerboard_fmri_task --help`): `--config`, `--participa
 ```powershell
 py -3.13 -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements.txt -r requirements-dev.txt
+.\.venv\Scripts\python -m pip install -e .
 .\.venv\Scripts\python -m pytest
-.\.venv\Scripts\python src\checkerboard_fmri_task\main.py --config config\test_config_UNVERIFIED.toml
 ```
+
+### Running from the venv
+
+`pip install -e .` puts a `checkerboard_fmri_task` command in `.venv\Scripts\`. Activate the
+venv to call it by name; it reads `config\task_config.toml` from the repo by default.
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+checkerboard_fmri_task --check-config   # validate the settings
+checkerboard_fmri_task --list-screens
+checkerboard_fmri_task                  # run a session
+checkerboard_fmri_task --config config\test_config_UNVERIFIED.toml
+```
+
+Without activating: `.\.venv\Scripts\checkerboard_fmri_task.exe` or
+`.\.venv\Scripts\python -m checkerboard_fmri_task.main`.
 
 `config/test_config_UNVERIFIED.toml` holds best-guess values for trying the software out
 only. Never collect data with it.
@@ -46,7 +62,9 @@ code) and `main.py` (CLI).
 
 ## Building
 
-Needs [Inno Setup 6](https://jrsoftware.org/isinfo.php) for the installer.
+Needs [Inno Setup 6](https://jrsoftware.org/isinfo.php) for the installer. The exe and
+installer icons are generated from `assets/Radial Checkerboard Optical Target.png` (via
+Pillow, in `requirements-dev.txt`).
 
 ```powershell
 .\build.ps1 -Full   # exe + installer
@@ -55,5 +73,7 @@ Needs [Inno Setup 6](https://jrsoftware.org/isinfo.php) for the installer.
 ```
 
 The installer lands in `build_output\installer\`. It installs per user (no admin rights),
-adds desktop shortcuts, and never overwrites or removes an edited `task_config.toml`.
+and adds desktop shortcuts. A reinstall first uninstalls the old version, then replaces
+`task_config.toml` with the shipped defaults; the previous copy is saved next to it as
+`task_config.previous.toml`.
 Versions come from git tags (`git tag v1.0.0`).

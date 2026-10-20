@@ -7,6 +7,8 @@ from PyInstaller.utils.hooks import collect_submodules, copy_metadata
 
 REPO_ROOT = os.path.join(SPECPATH, "..")
 SRC_ROOT = os.path.join(REPO_ROOT, "src", "checkerboard_fmri_task")
+# Generated from assets/ by build.ps1 before PyInstaller runs.
+ICON_PATH = os.path.join(REPO_ROOT, "build_output", "checkerboard_fmri_task.ico")
 
 # (exe_name, script path relative to src/checkerboard_fmri_task, console window?, extra datas)
 TOOLS = [
@@ -48,6 +50,7 @@ for name, script, console, extra_datas in TOOLS:
         target_arch=None,
         codesign_identity=None,
         entitlements_file=None,
+        icon=ICON_PATH,
     )
     collect_args.extend([exe, a.binaries, a.zipfiles, a.datas])
 

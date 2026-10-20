@@ -46,9 +46,18 @@ def test_log_rings_widen_with_eccentricity():
 
 def test_inverted_image_swaps_check_colours():
     pattern = radial_checkerboard(50.0, 5.0, n_wedges=8, n_rings=3, ring_spacing="linear")
-    normal = render_rgba(pattern, 0.0, 1.0, inverted=False)
-    inverted = render_rgba(pattern, 0.0, 1.0, inverted=True)
+    normal = render_rgba(pattern, 0.0, 1.0, background=0.0, inverted=False)
+    inverted = render_rgba(pattern, 0.0, 1.0, background=0.0, inverted=True)
     inside = pattern != OUTSIDE
     assert np.all(normal[inside, 0].astype(int) + inverted[inside, 0] == 255)
     assert np.all(normal[~inside, 3] == 0)
     assert np.all(normal[inside, 3] == 255)
+
+
+def test_outside_pixels_stay_background_when_inverted():
+    pattern = radial_checkerboard(50.0, 5.0, n_wedges=8, n_rings=3, ring_spacing="linear")
+    normal = render_rgba(pattern, 0.0, 1.0, background=0.5, inverted=False)
+    inverted = render_rgba(pattern, 0.0, 1.0, background=0.5, inverted=True)
+    outside = pattern == OUTSIDE
+    assert np.all(normal[outside, :3] == 128)
+    assert np.all(inverted[outside, :3] == 128)

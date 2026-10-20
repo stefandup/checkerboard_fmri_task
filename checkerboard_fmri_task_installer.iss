@@ -32,6 +32,12 @@ OutputDir=build_output\installer
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
+; Generated from assets/ by build.ps1; the uninstall entry reuses the exe's embedded icon.
+SetupIconFile=build_output\checkerboard_fmri_task.ico
+UninstallDisplayIcon={app}\{#MyAppExeName}
+; Tells Explorer to refresh its icon cache after install; otherwise a reinstall over the same
+; path keeps showing the old cached shortcut icon.
+ChangesAssociations=yes
 ; Close anything holding the files open before overwriting them (Inno 6's default, stated
 ; explicitly); don't relaunch user-started tools afterwards.
 CloseApplications=yes
@@ -41,10 +47,9 @@ RestartApplications=no
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "build_output\payload\*"; DestDir: "{app}"; Excludes: "task_config.toml"; Flags: ignoreversion recursesubdirs createallsubdirs
-; The config holds the lab's verified settings: never overwrite or remove an edited copy
-; (the upgrade step in [Code] runs the old uninstaller first, so uninsneveruninstall matters).
-Source: "build_output\payload\task_config.toml"; DestDir: "{app}"; Flags: onlyifdoesntexist uninsneveruninstall
+; task_config.toml is replaced on every install; [Code] first backs up the previous copy to
+; task_config.previous.toml (not installed by Inno, so the uninstaller leaves it alone).
+Source: "build_output\payload\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Tasks]
 Name: desktopicon; Description: "Create a &desktop icon"; GroupDescription: "Additional icons:"
@@ -106,10 +111,21 @@ begin
     ewWaitUntilTerminated, ResultCode);
 end;
 
+// Keeps the user's edited settings recoverable before the new default config replaces them.
+procedure BackUpConfig();
+var
+  ConfigPath: String;
+begin
+  ConfigPath := ExpandConstant('{app}\task_config.toml');
+  if FileExists(ConfigPath) then
+    FileCopy(ConfigPath, ExpandConstant('{app}\task_config.previous.toml'), False);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
   begin
+    BackUpConfig();
     if IsUpgrade() then
       UninstallOldVersion();
   end;

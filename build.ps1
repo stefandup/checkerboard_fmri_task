@@ -19,6 +19,10 @@ $PayloadPath = Join-Path $BuildOutput "payload"
 # Build-Installer can clear it before each compile -- installer filenames carry the version,
 # so stale exes from older versions would otherwise pile up.
 $InstallerPath = Join-Path $BuildOutput "installer"
+# The PNG in assets/ is the single source for every icon; the .ico is generated from it
+# (specs/checkerboard_fmri_task.spec and the .iss both point at this path).
+$IconSource = Join-Path $PSScriptRoot "assets\Radial Checkerboard Optical Target.png"
+$IconPath = Join-Path $BuildOutput "checkerboard_fmri_task.ico"
 
 # Resolved once, up front, rather than calling bare `pip`/`pyinstaller` and hoping PATH
 # resolves both to the same interpreter -- otherwise `pip install -e .` can write fresh
@@ -56,9 +60,16 @@ No option given: prints this help and exits without building anything.
 "@ | Write-Host
 }
 
+function Build-Icon {
+    New-Item -ItemType Directory -Path $BuildOutput -Force | Out-Null
+    & $Python -c "import sys; from PIL import Image; Image.open(sys.argv[1]).save(sys.argv[2], sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])" $IconSource $IconPath
+    Assert-Success "Icon conversion (needs pillow from requirements-dev.txt)"
+}
+
 function Build-Exes {
     & $Python -m pip install -e . --no-deps
     Assert-Success "pip install -e ."
+    Build-Icon
     # --noconfirm: skip PyInstaller's interactive "output directory ... will be REMOVED!"
     # prompt -- this script has no stdin to answer it with.
     & $Python -m PyInstaller --noconfirm --workpath $WorkPath --distpath $DistPath `
@@ -84,6 +95,7 @@ function Build-Installer {
     Copy-Item (Join-Path $bundleDir "*") $PayloadPath -Recurse
 
     if (Test-Path $InstallerPath) { Remove-Item $InstallerPath -Recurse -Force }
+    Build-Icon
 
     $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
     if (-not (Test-Path $iscc)) {

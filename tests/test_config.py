@@ -6,26 +6,6 @@ from checkerboard_fmri_task.config import ConfigError, load_config, parse_config
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-# Every value the shipped config leaves for the literature review.
-LITERATURE_KEYS = [
-    "[paradigm] first_block",
-    "[paradigm] on_block_s",
-    "[paradigm] off_block_s",
-    "[paradigm] total_duration_s",
-    "[stimulus] reversal_rate_hz",
-    "[stimulus] n_wedges",
-    "[stimulus] n_rings",
-    "[stimulus] inner_radius_deg",
-    "[stimulus] outer_radius_deg",
-    "[stimulus] ring_spacing",
-    "[stimulus] background_luminance",
-    "[fixation] shape",
-    "[fixation] size_deg",
-    "[fixation] color",
-    "[display] viewing_distance_cm",
-    "[display] screen_width_cm",
-]
-
 
 def test_valid_config_parses(config_data):
     config = parse_config(config_data)
@@ -41,14 +21,9 @@ def test_black_and_white_luminances(config):
     assert config.stimulus.high_luminance == 1.0
 
 
-def test_shipped_config_refuses_to_run_until_literature_values_are_set():
-    with pytest.raises(ConfigError) as error:
-        load_config(REPO_ROOT / "config" / "task_config.toml")
-    message = str(error.value)
-    for key in LITERATURE_KEYS:
-        assert f"{key} is missing" in message
-    assert "dummy_triggers" not in message
-    assert message.count("is missing") == len(LITERATURE_KEYS)
+def test_shipped_config_is_valid_with_black_background():
+    config = load_config(REPO_ROOT / "config" / "task_config.toml")
+    assert config.stimulus.background_luminance == config.stimulus.low_luminance == 0.0
 
 
 def test_unverified_test_config_is_valid():

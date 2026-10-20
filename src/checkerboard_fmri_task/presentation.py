@@ -71,8 +71,8 @@ class PygletDisplay:
         )
         low, high = stim.low_luminance, stim.high_luminance
         self._textures = (
-            _to_texture(render_rgba(pattern, low, high, inverted=False)),
-            _to_texture(render_rgba(pattern, low, high, inverted=True)),
+            _to_texture(render_rgba(pattern, low, high, bg, inverted=False)),
+            _to_texture(render_rgba(pattern, low, high, bg, inverted=True)),
         )
         self._centre = (self.window.width / 2, self.window.height / 2)
         self._origin = (
@@ -82,6 +82,8 @@ class PygletDisplay:
 
         self._batch = pyglet.graphics.Batch()
         self._fixation = self._make_fixation(config, disp.viewing_distance_cm)
+        self._waiting_batch = pyglet.graphics.Batch()
+        self._countdown_label = self._make_waiting_screen(bg, config.fixation.shape)
         self._warm_up()
 
         if outer_px > min(screen.width, screen.height) / 2:
@@ -115,11 +117,39 @@ class PygletDisplay:
             ),
         ]
 
+    def _make_waiting_screen(self, background: float, fixation_shape: str) -> pyglet.text.Label:
+        """Instructions, waiting message and countdown, top to bottom; returns the countdown.
+
+        Text is white or black, whichever contrasts with the background.
+        """
+        cx, cy = self._centre
+        size = self.window.height / 30
+        color = (255, 255, 255, 255) if background < 0.5 else (0, 0, 0, 255)
+        style = {"anchor_x": "center", "anchor_y": "center", "color": color}
+        # (text, font scale, space below in multiples of size); None marks the countdown.
+        lines = [
+            (f"Keep your eyes on the {fixation_shape} in the centre.", 1.0, 2.0),
+            ("Please lie as still as possible.", 1.0, 2.0),
+            ("A flickering pattern will come and go.", 1.0, 5.0),
+            ("Waiting for scanner to start", 1.2, 3.5),
+            (None, 2.5, 0.0),
+        ]
+        y = cy + sum(gap for _, _, gap in lines) * size / 2
+        self._waiting_labels: list[pyglet.text.Label] = []
+        for text, scale, gap in lines:
+            label = pyglet.text.Label(
+                text or "", font_size=size * scale, x=cx, y=y, batch=self._waiting_batch, **style
+            )
+            self._waiting_labels.append(label)
+            y -= gap * size
+        return self._waiting_labels[-1]
+
     def _warm_up(self) -> None:
         """Draw everything once, off-screen, so the first ON block doesn't stall on GPU setup."""
         for texture in self._textures:
             texture.blit(*self._origin)
         self._batch.draw()
+        self._waiting_batch.draw()
         gl.glFinish()
         self.window.clear()
 
@@ -153,6 +183,12 @@ class PygletDisplay:
     def draw(self, frame: FrameState) -> None:
         self.window.switch_to()
         self.window.clear()
+        if frame.countdown is not None:
+            text = str(frame.countdown)
+            if self._countdown_label.text != text:  # re-layout only when the number changes
+                self._countdown_label.text = text
+            self._waiting_batch.draw()
+            return
         if frame.show_checkerboard:
             self._textures[int(frame.inverted)].blit(*self._origin)
         self._batch.draw()

@@ -14,6 +14,7 @@ python -m PyInstaller \
   --onedir \
   --name "Checkerboard fMRI Task" \
   --osx-bundle-identifier "za.ac.sun.checkerboard_fmri_task" \
+  --icon "assets/Radial Checkerboard Optical Target.png" \
   --distpath build_output/dist \
   --workpath build_output/work/mac \
   --copy-metadata checkerboard-fmri-task \

@@ -109,6 +109,18 @@ def test_display_follows_schedule(config, tmp_path):
                 assert frame.inverted == (int(reversals) % 2 == 1)
 
 
+def test_waiting_screen_counts_down_to_start(config, tmp_path):
+    display = FakeDisplay(first_trigger_s=3.0)
+    run(config, tmp_path, display)
+    task_start = 3.0 + 5 * TR_S
+    waiting = [frame.countdown for time_s, frame in display.drawn if time_s < task_start]
+    assert waiting[0] == 6  # 5 dummies + the start trigger
+    assert list(dict.fromkeys(waiting)) == [6, 5, 4, 3, 2, 1]
+    # The frame already drawn when the start trigger lands may still show the countdown.
+    after_start = [frame for time_s, frame in display.drawn if time_s > task_start + FRAME_S]
+    assert all(frame.countdown is None for frame in after_start)
+
+
 def test_triggers_before_measurement_finishes_are_counted(config, tmp_path):
     status, rows = run(config, tmp_path, FakeDisplay(first_trigger_s=0.0))
     assert status == COMPLETED

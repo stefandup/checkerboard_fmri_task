@@ -38,6 +38,9 @@ class KeyPress(NamedTuple):
 class FrameState:
     show_checkerboard: bool
     inverted: bool
+    # Set while waiting for the scanner: triggers left until the task starts. The display
+    # then shows the waiting screen instead of the fixation.
+    countdown: int | None = None
 
 
 FIXATION_ONLY = FrameState(show_checkerboard=False, inverted=False)
@@ -106,8 +109,11 @@ class Session:
             if trigger.kind == "start":
                 self.log.write(key.time_s, "task_start", trigger_count=trigger.count)
 
+    def _waiting_frame(self) -> FrameState:
+        return FrameState(False, False, countdown=self.triggers.remaining_until_start)
+
     def _log_setup(self) -> None:
-        now = self._flip(FIXATION_ONLY)  # also gives the setup rows a real timestamp
+        now = self._flip(self._waiting_frame())  # also gives the setup rows a real timestamp
         self.log.write(now, "display_info", detail=self.display.describe())
         for message in self.display.warnings:
             self._warn(now, message)
@@ -123,7 +129,7 @@ class Session:
         flips = []
         for _ in range(REFRESH_MEASUREMENT_FRAMES):
             self._handle_keys()
-            flips.append(self._flip(FIXATION_ONLY))
+            flips.append(self._flip(self._waiting_frame()))
         if self.triggers.started:
             self._warn(
                 flips[-1],
@@ -155,7 +161,7 @@ class Session:
             self._handle_keys()
             if self.triggers.started:
                 return
-            self._flip(FIXATION_ONLY)
+            self._flip(self._waiting_frame())
 
     def _present(self, frame_interval_s: float) -> None:
         task_start = self.log.task_start_s
