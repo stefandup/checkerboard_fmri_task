@@ -4,6 +4,19 @@ Fullscreen radial checkerboard (contrast-reversing, ON/OFF blocks, central fixat
 fMRI, started by the scanner's Left Shift triggers. Built with Python + pyglet, shipped as a
 standalone Windows program; the scanner PC needs no Python.
 
+## Download for Windows
+
+[![Download the Windows installer](https://img.shields.io/github/v/release/stefandup/checkerboard_fmri_task?label=Download%20for%20Windows&style=for-the-badge&logo=windows)](https://github.com/stefandup/checkerboard_fmri_task/releases/latest)
+
+1. Click the button above (or go to the
+   [latest release](https://github.com/stefandup/checkerboard_fmri_task/releases/latest)).
+2. Under **Assets**, click the file named `CheckerboardFmriTaskSetup-v….exe` to download it.
+3. Double-click the downloaded file and follow the installer. No Python or other software
+   is needed.
+
+If Windows shows "Windows protected your PC", click **More info**, then **Run anyway**. The
+installer isn't code-signed, so Windows doesn't recognise it yet.
+
 ## Running a session
 
 1. Check the values in `task_config.toml` (in the install folder; the installer adds a
