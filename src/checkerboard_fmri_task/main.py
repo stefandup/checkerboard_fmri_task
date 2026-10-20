@@ -25,12 +25,24 @@ from rich.traceback import Traceback
 from checkerboard_fmri_task.config import ConfigError, TaskConfig, load_config
 from checkerboard_fmri_task.display_check import px_per_cm, screen_problems, stimulus_sizes
 from checkerboard_fmri_task.event_log import EventLog
+from checkerboard_fmri_task.graphics_check import (
+    GRAPHICS_ADVICE,
+    GraphicsError,
+    display_adapters,
+    graphics_problem,
+    is_remote_session,
+)
 from checkerboard_fmri_task.output import (
     default_output_dir,
     output_dir_problem,
     write_crash_report,
 )
-from checkerboard_fmri_task.presentation import PygletDisplay, list_screens, trigger_symbol
+from checkerboard_fmri_task.presentation import (
+    PygletDisplay,
+    list_screens,
+    probe_opengl,
+    trigger_symbol,
+)
 from checkerboard_fmri_task.runner import ABORT, FrameState, Session
 from checkerboard_fmri_task.timing import estimate_frame_interval
 
@@ -99,6 +111,34 @@ def _check_output_dir(output_dir: Path, config_path: Path) -> None:
             f"set [output] data_dir in {config_path}, or use --output-dir."
         )
     console.print(f"Output folder OK: [bold]{escape(str(output_dir))}[/]")
+
+
+def _warn_graphics() -> None:
+    """Early warning, before a participant is set up, that the window likely can't open."""
+    problem = graphics_problem(display_adapters(), is_remote_session())
+    if problem is not None:
+        console.print(
+            f"[bold yellow]Warning: {escape(problem)}. The task will probably not start.[/]\n"
+            f"[yellow]{escape(GRAPHICS_ADVICE)}[/]"
+        )
+
+
+def _check_graphics() -> bool:
+    """Opens a hidden OpenGL window and reports whether the task can draw on this PC."""
+    try:
+        info = probe_opengl()
+    except GraphicsError as e:
+        console.print(f"[bold red]Graphics: {escape(str(e))}[/]")
+        hint = graphics_problem(display_adapters(), is_remote_session())
+        if hint is not None:
+            console.print(f"[yellow]Likely cause: {escape(hint)}[/]")
+        console.print(f"[yellow]{escape(GRAPHICS_ADVICE)}[/]")
+        return False
+    console.print(
+        f"Graphics: [bold green]OK[/] ({escape(info.renderer)}, "
+        f"OpenGL {escape(info.version_string)})"
+    )
+    return True
 
 
 def _raise_priority() -> None:
@@ -274,6 +314,11 @@ def run_task(
 @click.option("--list-screens", "show_screens", is_flag=True, help="List screens and exit.")
 @click.option("--check-config", is_flag=True, help="Validate the configuration and exit.")
 @click.option(
+    "--check-graphics",
+    is_flag=True,
+    help="Check this PC's graphics can run the task, then exit (exit code 1 if not).",
+)
+@click.option(
     "--check-display",
     is_flag=True,
     help="Show each screen's refresh rate and the expected stimulus sizes, then exit.",
@@ -285,6 +330,7 @@ def main(
     output_dir: Path | None,
     show_screens: bool,
     check_config: bool,
+    check_graphics: bool,
     check_display: bool,
 ) -> None:
     """Radial checkerboard fMRI task. Escape aborts; the log is saved either way."""
@@ -293,6 +339,10 @@ def main(
     )
     _install_crash_handler([Path(tempfile.gettempdir())])
     console.print(f"[bold]Checkerboard fMRI Task v{escape(package_version())}[/]")
+    if check_graphics:
+        # No "press any key" pause: the installer runs this hidden and reads the exit code.
+        raise SystemExit(0 if _check_graphics() else 1)
+    _warn_graphics()
     if show_screens:
         _print_screens()
         return
@@ -320,8 +370,13 @@ def main(
         return
     if check_display:
         _print_display_check(config)
+        if not _check_graphics():
+            _exit_with_error("This PC can't show the checkerboard until the graphics are fixed.")
         if click.confirm("Show a static checkerboard to measure?", default=True):
-            _show_static_checkerboard(config, _choose_screen(screen_index))
+            try:
+                _show_static_checkerboard(config, _choose_screen(screen_index))
+            except GraphicsError as e:
+                _exit_with_error(f"{e}\n\n{GRAPHICS_ADVICE}")
         return
 
     while participant is None:
@@ -333,7 +388,10 @@ def main(
     _check_output_dir(data_dir, config_path)
     screen = _choose_screen(screen_index)
     _raise_priority()
-    run_task(config, config_path, participant, screen, data_dir)
+    try:
+        run_task(config, config_path, participant, screen, data_dir)
+    except GraphicsError as e:
+        _exit_with_error(f"{e}\n\n{GRAPHICS_ADVICE}")
     if FROZEN:
         click.pause("Press any key to close...")
 

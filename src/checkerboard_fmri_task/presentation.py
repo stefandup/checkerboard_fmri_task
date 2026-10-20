@@ -5,10 +5,12 @@ from dataclasses import dataclass
 
 import pyglet
 from pyglet import gl
+from pyglet.gl.lib import MissingFunctionException
 from pyglet.window import key
 
 from checkerboard_fmri_task.checkerboard import deg_to_px, radial_checkerboard, render_rgba
 from checkerboard_fmri_task.config import ConfigError, TaskConfig
+from checkerboard_fmri_task.graphics_check import GraphicsError, opengl_problem
 from checkerboard_fmri_task.runner import ABORT, TRIGGER, FrameState, KeyPress
 
 
@@ -47,6 +49,40 @@ def list_screens() -> list[ScreenInfo]:
     return infos
 
 
+@dataclass(frozen=True)
+class OpenGLInfo:
+    renderer: str
+    version: tuple[int, int]
+    version_string: str
+
+
+def _open_window(**kwargs) -> pyglet.window.BaseWindow:
+    """pyglet.window.Window, with "no usable OpenGL" failures raised as GraphicsError."""
+    try:
+        return pyglet.window.Window(**kwargs)
+    except (
+        MissingFunctionException,
+        gl.GLException,
+        gl.ContextException,
+        pyglet.window.NoSuchConfigException,
+    ) as e:
+        raise GraphicsError(f"No usable OpenGL 3.3 graphics driver ({e})") from e
+
+
+def probe_opengl() -> OpenGLInfo:
+    """Opens a hidden window, as the task would, and reports what OpenGL the driver gave."""
+    window = _open_window(visible=False)
+    try:
+        info = window.context.get_info()
+        result = OpenGLInfo(info.get_renderer(), info.get_version(), info.get_version_string())
+    finally:
+        window.close()
+    problem = opengl_problem(result.version)
+    if problem is not None:
+        raise GraphicsError(f"{result.renderer}: {problem}")
+    return result
+
+
 def trigger_symbol(key_name: str) -> int:
     try:
         return getattr(key, key_name)
@@ -70,7 +106,7 @@ class PygletDisplay:
     def __init__(self, config: TaskConfig, screen_index: int) -> None:
         self._trigger = trigger_symbol(config.scanner.trigger_key)
         screen = pyglet.display.get_display().get_screens()[screen_index]
-        self.window = pyglet.window.Window(
+        self.window = _open_window(
             fullscreen=True, screen=screen, vsync=True, caption="checkerboard_fmri_task"
         )
         self.window.set_mouse_visible(False)

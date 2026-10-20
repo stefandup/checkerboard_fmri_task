@@ -196,6 +196,32 @@ begin
     FileCopy(ConfigPath, ExpandConstant('{app}\task_config.previous.toml'), False);
 end;
 
+// Runs the installed task's own --check-graphics, hidden: it opens an invisible OpenGL window
+// exactly as the task would, so it catches a missing driver, Remote Desktop and graphics chips
+// too old for the task alike. Installing still completes either way -- this only warns.
+procedure CheckGraphics();
+var
+  OutputFile: String;
+  Output: AnsiString;
+  ResultCode: Integer;
+begin
+  OutputFile := ExpandConstant('{tmp}\graphics_check.txt');
+  // cmd /C strips the outer pair of quotes, leaving the quoted exe and output paths intact.
+  if not Exec(ExpandConstant('{cmd}'),
+    '/C ""' + ExpandConstant('{app}\{#MyAppExeName}') + '" --check-graphics > "' +
+    OutputFile + '" 2>&1"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    exit;
+  if ResultCode = 0 then
+    exit;
+  if not LoadStringFromFile(OutputFile, Output) then
+    Output := '';
+  SuppressibleMsgBox(
+    'The task was installed, but this PC''s graphics can''t run it yet:' + #13#10#13#10 +
+    String(Output) + #13#10 +
+    'To check again later, run checkerboard_fmri_task.exe --check-graphics.',
+    mbError, MB_OK, IDOK);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
@@ -205,5 +231,8 @@ begin
       UninstallOldVersion();
   end;
   if CurStep = ssPostInstall then
+  begin
     SetConfigDataDir(GetDataDir(''));
+    CheckGraphics();
+  end;
 end;
