@@ -94,3 +94,16 @@ and adds desktop shortcuts. A reinstall first uninstalls the old version, then r
 `task_config.toml` with the shipped defaults; the previous copy is saved next to it as
 `task_config.previous.toml`.
 Versions come from git tags (`git tag v1.0.0`).
+
+## License
+
+Checkerboard fMRI Task is available for noncommercial use under the
+[PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
+
+Copyright Stellenbosch University.
+
+See [`LICENSE.md`](LICENSE.md) for details.
+
+**Disclaimer:** this is a standard radial checkerboard stimulus, provided as is, with no
+warranty of any kind. It is a research tool, not a medical device. Check the settings,
+timing and output against your own protocol and scanner before you use it to collect data.

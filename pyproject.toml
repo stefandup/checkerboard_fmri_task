@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "checkerboard-fmri-task"
 dynamic = ["version", "dependencies"]
+license = { file = "LICENSE.md" }
 
 [tool.setuptools_scm]
 
