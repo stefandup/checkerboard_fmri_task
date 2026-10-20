@@ -253,6 +253,7 @@ def run_task(
 
 
 @click.command()
+@click.version_option(package_version(), prog_name="checkerboard_fmri_task")
 @click.option(
     "--config",
     "config_path",
@@ -291,6 +292,7 @@ def main(
         level=logging.INFO, format="%(message)s", handlers=[RichHandler(console=console)]
     )
     _install_crash_handler([Path(tempfile.gettempdir())])
+    console.print(f"[bold]Checkerboard fMRI Task v{escape(package_version())}[/]")
     if show_screens:
         _print_screens()
         return

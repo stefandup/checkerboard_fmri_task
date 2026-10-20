@@ -96,3 +96,4 @@ Run the program with `--help` to see every option. Use the same line as in step 
 | `--list-screens` | List the screens and stop. |
 | `--check-config` | Check the settings file for mistakes and stop. |
 | `--check-display` | Check the screens against the settings and stop (see step 3). |
+| `--version` | Show the version and stop. The version is also printed at the top of every run. |

@@ -41,7 +41,7 @@ data folder (or `%TEMP%`), and the window stays open:
 - `..._config.toml`: an exact copy of the configuration used.
 
 Command-line options (`checkerboard_fmri_task --help`): `--config`, `--participant`,
-`--screen`, `--output-dir`, `--list-screens`, `--check-config`, `--check-display`.
+`--screen`, `--output-dir`, `--list-screens`, `--check-config`, `--check-display`, `--version`.
 
 `--check-display` lists every screen (refresh rate, resolution, Windows scaling), the
 expected checkerboard and fixation sizes in degrees, cm and pixels, and anything that would
