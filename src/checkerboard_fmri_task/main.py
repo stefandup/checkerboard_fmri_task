@@ -7,6 +7,7 @@ import re
 import shutil
 import sys
 import time
+from collections import deque
 from datetime import datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -18,9 +19,11 @@ from rich.markup import escape
 from rich.table import Table
 
 from checkerboard_fmri_task.config import ConfigError, TaskConfig, load_config
+from checkerboard_fmri_task.display_check import px_per_cm, screen_problems, stimulus_sizes
 from checkerboard_fmri_task.event_log import EventLog
 from checkerboard_fmri_task.presentation import PygletDisplay, list_screens, trigger_symbol
-from checkerboard_fmri_task.runner import Session
+from checkerboard_fmri_task.runner import ABORT, FrameState, Session
+from checkerboard_fmri_task.timing import estimate_frame_interval
 
 console = Console()
 logger = logging.getLogger("checkerboard_fmri_task")
@@ -81,10 +84,70 @@ def _choose_screen(screen_index: int | None) -> int:
 
 
 def _print_screens() -> None:
-    table = Table("Index", "Position", "Resolution", title="Screens")
+    table = Table(
+        "Index",
+        "Monitor",
+        "Primary",
+        "Position",
+        "Resolution",
+        "Refresh (Hz)",
+        "Scaling",
+        title="Screens",
+    )
     for s in list_screens():
-        table.add_row(str(s.index), f"({s.x}, {s.y})", f"{s.width} x {s.height}")
+        table.add_row(
+            str(s.index),
+            escape(s.name),
+            "yes" if s.primary else "",
+            f"({s.x}, {s.y})",
+            f"{s.width} x {s.height}",
+            "?" if s.refresh_hz is None else f"{s.refresh_hz:.2f}",
+            f"{s.scale:.0%}",
+        )
     console.print(table)
+
+
+def _print_display_check(config: TaskConfig) -> None:
+    screens = list_screens()
+    _print_screens()
+    disp = config.display
+    table = Table(
+        "Item",
+        "Visual angle (deg)",
+        "On screen (cm)",
+        *(f"Screen {s.index} (px)" for s in screens),
+        title=f"Expected stimulus size (viewing distance {disp.viewing_distance_cm} cm)",
+    )
+    for size in stimulus_sizes(config):
+        table.add_row(
+            size.name,
+            f"{size.deg:.2f}",
+            f"{size.cm:.2f}",
+            *(f"{size.cm * px_per_cm(config, s.width, s.height):.0f}" for s in screens),
+        )
+    table.add_row(
+        "Assumed image width",
+        "",
+        "",
+        *(f"{disp.image_width_cm(s.width, s.height):.1f} cm" for s in screens),
+    )
+    console.print(table)
+    source = (
+        "screen_width_cm"
+        if disp.screen_width_cm is not None
+        else f"a {disp.screen_diagonal_inch}-inch diagonal"
+    )
+    console.print(
+        f"Pixel sizes assume each screen's visible image width comes from {source}. "
+        "Measure the checkerboard on the stimulus screen: it should match the cm column, "
+        "horizontally and vertically."
+    )
+    for s in screens:
+        problems = screen_problems(config, s.width, s.height, s.refresh_hz, s.scale)
+        if not problems:
+            console.print(f"Screen {s.index}: [bold green]OK[/]")
+        for problem in problems:
+            console.print(f"Screen {s.index}: [yellow]{escape(problem)}[/]")
 
 
 def _print_config(config: TaskConfig) -> None:
@@ -93,6 +156,29 @@ def _print_config(config: TaskConfig) -> None:
         for name, value in vars(values).items():
             table.add_row(section, name, escape(str(value)))
     console.print(table)
+
+
+def _show_static_checkerboard(config: TaskConfig, screen_index: int) -> None:
+    """Fullscreen, non-reversing checkerboard until Escape; reports the measured refresh."""
+    diameter = stimulus_sizes(config)[0]
+    console.print(f"Showing the checkerboard on screen {screen_index}. Press Escape to close.")
+    display = PygletDisplay(config, screen_index)
+    for warning in display.warnings:
+        console.print(f"[yellow]{escape(warning)}[/]")
+    display.show_note(
+        f"Checkerboard diameter should measure {diameter.cm:.2f} cm "
+        f"({diameter.deg:.1f} deg), horizontally and vertically.   Esc closes."
+    )
+    frame = FrameState(show_checkerboard=True, inverted=False)
+    flips: deque[float] = deque(maxlen=600)  # the last ~10 s at 60 Hz
+    try:
+        while not any(key.kind == ABORT for key in display.poll_keys()):
+            display.draw(frame)
+            flips.append(display.flip())
+    finally:
+        display.close()
+    if len(flips) >= 2:
+        console.print(f"Measured refresh: [bold]{1 / estimate_frame_interval(flips):.2f} Hz[/]")
 
 
 def run_task(
@@ -149,6 +235,11 @@ def run_task(
 )
 @click.option("--list-screens", "show_screens", is_flag=True, help="List screens and exit.")
 @click.option("--check-config", is_flag=True, help="Validate the configuration and exit.")
+@click.option(
+    "--check-display",
+    is_flag=True,
+    help="Show each screen's refresh rate and the expected stimulus sizes, then exit.",
+)
 def main(
     config_path: Path,
     participant: str | None,
@@ -156,6 +247,7 @@ def main(
     output_dir: Path,
     show_screens: bool,
     check_config: bool,
+    check_display: bool,
 ) -> None:
     """Radial checkerboard fMRI task. Escape aborts; the log is saved either way."""
     logging.basicConfig(
@@ -177,6 +269,11 @@ def main(
     _print_config(config)
     if check_config:
         console.print("[bold green]Configuration OK[/]")
+        return
+    if check_display:
+        _print_display_check(config)
+        if click.confirm("Show a static checkerboard to measure?", default=True):
+            _show_static_checkerboard(config, _choose_screen(screen_index))
         return
 
     while participant is None:

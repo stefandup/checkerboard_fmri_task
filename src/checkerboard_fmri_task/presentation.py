@@ -19,11 +19,32 @@ class ScreenInfo:
     y: int
     width: int
     height: int
+    name: str
+    primary: bool
+    refresh_hz: float | None  # as reported by Windows; the task also measures it at start
+    scale: float  # Windows display scaling, 1.0 = 100%
 
 
 def list_screens() -> list[ScreenInfo]:
     screens = pyglet.display.get_display().get_screens()
-    return [ScreenInfo(i, s.x, s.y, s.width, s.height) for i, s in enumerate(screens)]
+    infos = []
+    for i, s in enumerate(screens):
+        mode = s.get_mode()
+        infos.append(
+            ScreenInfo(
+                i,
+                s.x,
+                s.y,
+                s.width,
+                s.height,
+                name=s.get_monitor_name() or "?",
+                # Win32-only attribute (an int flag), not on pyglet's base Screen.
+                primary=bool(getattr(s, "is_primary", False)),
+                refresh_hz=mode.rate if mode and mode.rate else None,
+                scale=s.get_scale(),
+            )
+        )
+    return infos
 
 
 def trigger_symbol(key_name: str) -> int:
@@ -61,7 +82,7 @@ class PygletDisplay:
         bg = stim.background_luminance
         gl.glClearColor(bg, bg, bg, 1.0)
 
-        self._px_per_cm = screen.width / disp.screen_width_cm
+        self._px_per_cm = screen.width / disp.image_width_cm(screen.width, screen.height)
         self._px_per_deg_centre = deg_to_px(1.0, disp.viewing_distance_cm, self._px_per_cm)
         outer_px = deg_to_px(stim.outer_radius_deg, disp.viewing_distance_cm, self._px_per_cm)
         inner_px = deg_to_px(stim.inner_radius_deg, disp.viewing_distance_cm, self._px_per_cm)
@@ -84,6 +105,7 @@ class PygletDisplay:
         self._fixation = self._make_fixation(config, disp.viewing_distance_cm)
         self._waiting_batch = pyglet.graphics.Batch()
         self._countdown_label = self._make_waiting_screen(bg, config.fixation.shape)
+        self._note: pyglet.text.Label | None = None
         self._warm_up()
 
         if outer_px > min(screen.width, screen.height) / 2:
@@ -125,6 +147,7 @@ class PygletDisplay:
         cx, cy = self._centre
         size = self.window.height / 30
         color = (255, 255, 255, 255) if background < 0.5 else (0, 0, 0, 255)
+        self._text_color = color
         style = {"anchor_x": "center", "anchor_y": "center", "color": color}
         # (text, font scale, space below in multiples of size); None marks the countdown.
         lines = [
@@ -143,6 +166,18 @@ class PygletDisplay:
             self._waiting_labels.append(label)
             y -= gap * size
         return self._waiting_labels[-1]
+
+    def show_note(self, text: str) -> None:
+        """Text along the top edge, drawn over every non-waiting frame (for --check-display)."""
+        self._note = pyglet.text.Label(
+            text,
+            font_size=self.window.height / 45,
+            x=self._centre[0],
+            y=self.window.height - self.window.height / 20,
+            anchor_x="center",
+            anchor_y="center",
+            color=self._text_color,
+        )
 
     def _warm_up(self) -> None:
         """Draw everything once, off-screen, so the first ON block doesn't stall on GPU setup."""
@@ -192,6 +227,8 @@ class PygletDisplay:
         if frame.show_checkerboard:
             self._textures[int(frame.inverted)].blit(*self._origin)
         self._batch.draw()
+        if self._note is not None:
+            self._note.draw()
 
     def flip(self) -> float:
         self.window.flip()

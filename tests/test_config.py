@@ -103,3 +103,31 @@ def test_cross_needs_line_width(config_data):
 def test_expected_refresh_is_optional(config_data):
     del config_data["display"]["expected_refresh_hz"]
     assert parse_config(config_data).display.expected_refresh_hz is None
+
+
+def test_screen_size_needs_exactly_one_setting(config_data):
+    del config_data["display"]["screen_width_cm"]
+    with pytest.raises(ConfigError, match="exactly one of screen_width_cm"):
+        parse_config(config_data)
+    config_data["display"]["screen_width_cm"] = 40
+    config_data["display"]["screen_diagonal_inch"] = 24
+    with pytest.raises(ConfigError, match="exactly one of screen_width_cm"):
+        parse_config(config_data)
+
+
+def test_measured_width_ignores_resolution(config):
+    assert config.display.image_width_cm(1920, 1080) == 40.0
+
+
+@pytest.mark.parametrize(
+    ("width_px", "height_px", "expected_cm"),
+    [
+        (1920, 1080, 53.13),  # 16:9
+        (1920, 1200, 51.69),  # 16:10
+    ],
+)
+def test_width_from_diagonal(config_data, width_px, height_px, expected_cm):
+    del config_data["display"]["screen_width_cm"]
+    config_data["display"]["screen_diagonal_inch"] = 24
+    width = parse_config(config_data).display.image_width_cm(width_px, height_px)
+    assert width == pytest.approx(expected_cm, abs=0.01)

@@ -24,7 +24,11 @@ Output goes to `Documents\checkerboard_fmri_task\`:
 - `..._config.toml`: an exact copy of the configuration used.
 
 Command-line options (`checkerboard_fmri_task --help`): `--config`, `--participant`,
-`--screen`, `--output-dir`, `--list-screens`, `--check-config`.
+`--screen`, `--output-dir`, `--list-screens`, `--check-config`, `--check-display`.
+
+`--check-display` lists every screen (refresh rate, resolution, Windows scaling), the
+expected checkerboard and fixation sizes in degrees, cm and pixels, and anything that would
+stop a screen showing the stimulus as configured. Run it on the scanner PC before a session.
 
 ## Development
 

@@ -1,9 +1,12 @@
 """Load and validate the task configuration (TOML)."""
 
+import math
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+CM_PER_INCH = 2.54
 
 
 class ConfigError(ValueError):
@@ -56,9 +59,18 @@ class FixationConfig:
 @dataclass(frozen=True)
 class DisplayConfig:
     viewing_distance_cm: float
-    screen_width_cm: float
+    # Exactly one of these is set: a measured width, or a nominal monitor diagonal.
+    screen_width_cm: float | None
+    screen_diagonal_inch: float | None
     expected_refresh_hz: float | None
     dropped_frame_factor: float
+
+    def image_width_cm(self, width_px: int, height_px: int) -> float:
+        """Width of the visible image; from the diagonal, assuming square pixels."""
+        if self.screen_width_cm is not None:
+            return self.screen_width_cm
+        assert self.screen_diagonal_inch is not None
+        return self.screen_diagonal_inch * CM_PER_INCH * width_px / math.hypot(width_px, height_px)
 
 
 @dataclass(frozen=True)
@@ -152,7 +164,8 @@ def parse_config(data: dict[str, Any]) -> TaskConfig:
         },
         "display": {
             "viewing_distance_cm": display.get("viewing_distance_cm", float),
-            "screen_width_cm": display.get("screen_width_cm", float),
+            "screen_width_cm": display.get("screen_width_cm", float, required=False),
+            "screen_diagonal_inch": display.get("screen_diagonal_inch", float, required=False),
             "expected_refresh_hz": display.get("expected_refresh_hz", float, required=False),
             "dropped_frame_factor": display.get("dropped_frame_factor", float),
         },
@@ -239,7 +252,15 @@ def _check_values(values: dict[str, dict[str, Any]]) -> list[str]:
         )
 
     require(display["viewing_distance_cm"] > 0, "[display] viewing_distance_cm must be > 0")
-    require(display["screen_width_cm"] > 0, "[display] screen_width_cm must be > 0")
+    size_keys = [
+        key for key in ("screen_width_cm", "screen_diagonal_inch") if display[key] is not None
+    ]
+    require(
+        len(size_keys) == 1,
+        "[display] set exactly one of screen_width_cm (measured) or screen_diagonal_inch",
+    )
+    for key in size_keys:
+        require(display[key] > 0, f"[display] {key} must be > 0")
     if display["expected_refresh_hz"] is not None:
         require(display["expected_refresh_hz"] > 0, "[display] expected_refresh_hz must be > 0")
     require(display["dropped_frame_factor"] > 1, "[display] dropped_frame_factor must be > 1")

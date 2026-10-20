@@ -51,7 +51,13 @@ color = [1.0, 0.0, 0.0]         # RGB, each 0.0-1.0 [default: [1.0, 0.0, 0.0] (r
 
 [display]
 viewing_distance_cm = 60.0      # eye to screen (via the mirror for a projector) [default: 60.0]
-screen_width_cm = 53.0          # width of the visible image on the screen [default: 53.0]
+# Screen size: set exactly ONE of these two.
+#  - screen_width_cm: measured width of the visible image, edge to edge. Most accurate;
+#    REQUIRED for a projector (image size depends on zoom and throw distance).
+#  - screen_diagonal_inch: a monitor's advertised diagonal. Width is worked out from it and
+#    the screen resolution; expect 1-2% error (e.g. many "24 inch" monitors are 23.8").
+screen_width_cm = 53.0          # [default: 53.0]
+# screen_diagonal_inch = 24.0   # [default: not set]
 # Optional: refresh rate the projector should run at. If set, the measured rate is
 # compared against it and a mismatch is logged as a warning.
 expected_refresh_hz = 60.0      # [default: 60.0]
