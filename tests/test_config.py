@@ -131,3 +131,35 @@ def test_width_from_diagonal(config_data, width_px, height_px, expected_cm):
     config_data["display"]["screen_diagonal_inch"] = 24
     width = parse_config(config_data).display.image_width_cm(width_px, height_px)
     assert width == pytest.approx(expected_cm, abs=0.01)
+
+
+def test_output_dir_defaults_to_none(config):
+    assert config.output.data_dir is None
+
+
+def test_output_dir_from_config(config_data):
+    config_data["output"] = {"data_dir": str(REPO_ROOT / "data")}
+    assert parse_config(config_data).output.data_dir == REPO_ROOT / "data"
+
+
+def test_empty_output_dir_means_default(config_data):
+    config_data["output"] = {"data_dir": ""}
+    assert parse_config(config_data).output.data_dir is None
+
+
+def test_relative_output_dir_is_rejected(config_data):
+    config_data["output"] = {"data_dir": "data"}
+    with pytest.raises(ConfigError, match="data_dir must be a full path"):
+        parse_config(config_data)
+
+
+def test_shipped_config_is_ascii_for_the_installer():
+    # The installer rewrites data_dir; non-ASCII text could be garbled on the way.
+    (REPO_ROOT / "config" / "task_config.toml").read_bytes().decode("ascii")
+
+
+def test_config_with_byte_order_mark_loads(tmp_path):
+    shipped = (REPO_ROOT / "config" / "task_config.toml").read_bytes()
+    path = tmp_path / "task_config.toml"
+    path.write_bytes(b"\xef\xbb\xbf" + shipped)
+    assert load_config(path).output.data_dir is None

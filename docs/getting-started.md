@@ -62,7 +62,20 @@ anything that would stop the stimulus showing correctly.
 
 ## 5. Find your output
 
-Everything goes to `Documents\checkerboard_fmri_task\`:
+Everything goes to the data folder chosen during install: by default
+`Documents\checkerboard_fmri_task\`, opened by the **Checkerboard fMRI Task data** desktop
+shortcut. To change it later, set `data_dir` under `[output]` in the settings file. The task
+checks that it can save there right after you enter the participant ID.
+
+If Windows Security's **Controlled folder access** is on, Windows may block saving to
+Documents. Allow the program through it, or choose a folder outside Documents (for example
+`D:/fmri_data`).
+
+If something unexpected goes wrong, the window stays open with the error, and a
+`crash_<date-time>.txt` file is saved in the data folder (the console shows where at launch). Send it to whoever
+maintains the task.
+
+The data folder holds:
 
 - `sub-<ID>_task-checkerboard_<date-time>_events.csv` logs every trigger, block start,
   checkerboard flip, dropped frame and timing warning. `task_time_s` counts from the start

@@ -57,8 +57,83 @@ Name: desktopicon; Description: "Create a &desktop icon"; GroupDescription: "Add
 [Icons]
 Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 Name: "{userdesktop}\{#MyAppName} config"; Filename: "notepad.exe"; Parameters: """{app}\task_config.toml"""; Tasks: desktopicon
+Name: "{userdesktop}\{#MyAppName} data"; Filename: "{code:GetDataDir}"; Tasks: desktopicon
 
 [Code]
+var
+  DataDirPage: TInputDirWizardPage;
+
+// Where the task saves its logs. Pre-filled (last install's choice, else Documents), so
+// clicking Next -- or a /SILENT install -- keeps the default.
+procedure InitializeWizard();
+begin
+  DataDirPage := CreateInputDirPage(wpSelectDir,
+    'Select Data Folder', 'Where should session logs be saved?',
+    'Each session''s event log and a copy of its settings are saved in this folder. ' +
+    'The default suits most PCs.' + #13#10#13#10 +
+    'If Windows Security''s "Controlled folder access" is on, Documents may be blocked: ' +
+    'choose a folder outside it (for example D:\fmri_data).',
+    False, '');
+  DataDirPage.Add('');
+  DataDirPage.Values[0] := GetPreviousData('DataDir',
+    ExpandConstant('{userdocs}\checkerboard_fmri_task'));
+end;
+
+procedure RegisterPreviousData(PreviousDataKey: Integer);
+begin
+  SetPreviousData(PreviousDataKey, 'DataDir', DataDirPage.Values[0]);
+end;
+
+function GetDataDir(Param: String): String;
+begin
+  Result := DataDirPage.Values[0];
+end;
+
+// Same check the task makes at start-up: create the folder and write a throwaway file.
+function DataDirWritable(const Dir: String): Boolean;
+var
+  TestFile: String;
+begin
+  Result := False;
+  if not ForceDirectories(Dir) then
+    exit;
+  TestFile := AddBackslash(Dir) + 'write_test.tmp';
+  if SaveStringToFile(TestFile, 'write test', False) then
+  begin
+    DeleteFile(TestFile);
+    Result := True;
+  end;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if (CurPageID = DataDirPage.ID) and not DataDirWritable(DataDirPage.Values[0]) then
+    Result := MsgBox('Setup could not write to:' + #13#10 + DataDirPage.Values[0] + #13#10#13#10 +
+      'Use this folder anyway? Choose No to pick another one. ' +
+      'The task checks the folder again each time it starts.',
+      mbConfirmation, MB_YESNO) = IDYES;
+end;
+
+// Points the freshly installed task_config.toml's [output] data_dir at the chosen folder.
+// The shipped file is ASCII-only, so reading it back here can't garble any characters.
+procedure SetConfigDataDir(Dir: String);
+var
+  ConfigPath: String;
+  Lines: TArrayOfString;
+  I: Integer;
+begin
+  ConfigPath := ExpandConstant('{app}\task_config.toml');
+  if not LoadStringsFromFile(ConfigPath, Lines) then
+    exit;
+  // Forward slashes: backslashes would be escape characters in a TOML string.
+  StringChangeEx(Dir, '\', '/', True);
+  for I := 0 to GetArrayLength(Lines) - 1 do
+    if Pos('data_dir =', Lines[I]) = 1 then
+      Lines[I] := 'data_dir = "' + Dir + '"    # set by the installer [default: ""]';
+  SaveStringsToUTF8File(ConfigPath, Lines, False);
+end;
+
 // PrivilegesRequired=lowest -- this installer only ever writes its uninstall entry under
 // HKCU, so that's the only hive a previous install of this same AppId could be under.
 function GetUninstallString(): String;
@@ -129,4 +204,6 @@ begin
     if IsUpgrade() then
       UninstallOldVersion();
   end;
+  if CurStep = ssPostInstall then
+    SetConfigDataDir(GetDataDir(''));
 end;

@@ -6,21 +6,30 @@ import platform
 import re
 import shutil
 import sys
+import tempfile
 import time
+import traceback
 from collections import deque
 from datetime import datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+from types import TracebackType
 
 import click
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.markup import escape
 from rich.table import Table
+from rich.traceback import Traceback
 
 from checkerboard_fmri_task.config import ConfigError, TaskConfig, load_config
 from checkerboard_fmri_task.display_check import px_per_cm, screen_problems, stimulus_sizes
 from checkerboard_fmri_task.event_log import EventLog
+from checkerboard_fmri_task.output import (
+    default_output_dir,
+    output_dir_problem,
+    write_crash_report,
+)
 from checkerboard_fmri_task.presentation import PygletDisplay, list_screens, trigger_symbol
 from checkerboard_fmri_task.runner import ABORT, FrameState, Session
 from checkerboard_fmri_task.timing import estimate_frame_interval
@@ -29,7 +38,6 @@ console = Console()
 logger = logging.getLogger("checkerboard_fmri_task")
 
 FROZEN = getattr(sys, "frozen", False)
-DEFAULT_OUTPUT_DIR = Path.home() / "Documents" / "checkerboard_fmri_task"
 HIGH_PRIORITY_CLASS = 0x80
 PARTICIPANT_PATTERN = re.compile(r"[A-Za-z0-9]+")
 
@@ -60,6 +68,37 @@ def _exit_with_error(message: str) -> None:
     if FROZEN:
         click.pause("Press any key to close...")
     raise SystemExit(1)
+
+
+def _install_crash_handler(report_folders: list[Path]) -> None:
+    """Unexpected errors: show the traceback, save it to a file, and keep the window open."""
+
+    def handle(exc_type: type[BaseException], exc: BaseException, tb: TracebackType | None) -> None:
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc, tb)
+            return
+        console.print(Traceback.from_exception(exc_type, exc, tb))
+        text = "".join(traceback.format_exception(exc_type, exc, tb))
+        report = write_crash_report(text, report_folders)
+        if report is not None:
+            console.print(f"[bold red]Unexpected error. Details saved to {escape(str(report))}[/]")
+        if FROZEN:
+            click.pause("Press any key to close...")
+
+    sys.excepthook = handle
+
+
+def _check_output_dir(output_dir: Path, config_path: Path) -> None:
+    """Exits with advice if the output folder can't be written."""
+    problem = output_dir_problem(output_dir)
+    if problem is not None:
+        _exit_with_error(
+            f"Cannot save data to {output_dir}\n{problem}\n\n"
+            "If Windows Security's 'Controlled folder access' is on, allow "
+            "checkerboard_fmri_task.exe through it, or choose a folder outside Documents: "
+            f"set [output] data_dir in {config_path}, or use --output-dir."
+        )
+    console.print(f"Output folder OK: [bold]{escape(str(output_dir))}[/]")
 
 
 def _raise_priority() -> None:
@@ -229,9 +268,7 @@ def run_task(
 @click.option(
     "--output-dir",
     type=click.Path(file_okay=False, path_type=Path),
-    default=DEFAULT_OUTPUT_DIR,
-    show_default=True,
-    help="Folder for the event log.",
+    help="Folder for the event log [default: [output] data_dir, else Documents].",
 )
 @click.option("--list-screens", "show_screens", is_flag=True, help="List screens and exit.")
 @click.option("--check-config", is_flag=True, help="Validate the configuration and exit.")
@@ -244,7 +281,7 @@ def main(
     config_path: Path,
     participant: str | None,
     screen_index: int | None,
-    output_dir: Path,
+    output_dir: Path | None,
     show_screens: bool,
     check_config: bool,
     check_display: bool,
@@ -253,6 +290,7 @@ def main(
     logging.basicConfig(
         level=logging.INFO, format="%(message)s", handlers=[RichHandler(console=console)]
     )
+    _install_crash_handler([Path(tempfile.gettempdir())])
     if show_screens:
         _print_screens()
         return
@@ -266,9 +304,17 @@ def main(
         _exit_with_error(f"{config_path}\n{e}")
         return
     console.print(f"Config: [bold]{escape(str(config_path.resolve()))}[/]")
+    data_dir = output_dir or config.output.data_dir or default_output_dir()
+    temp_dir = Path(tempfile.gettempdir())
+    _install_crash_handler([data_dir, temp_dir])
+    console.print(
+        f"Crash reports go to: [bold]{escape(str(data_dir))}[/] "
+        f"(or {escape(str(temp_dir))} if that folder can't be written)"
+    )
     _print_config(config)
     if check_config:
         console.print("[bold green]Configuration OK[/]")
+        _check_output_dir(data_dir, config_path)
         return
     if check_display:
         _print_display_check(config)
@@ -282,9 +328,10 @@ def main(
             participant = answer
         else:
             console.print("[red]Use letters and digits only.[/]")
+    _check_output_dir(data_dir, config_path)
     screen = _choose_screen(screen_index)
     _raise_priority()
-    run_task(config, config_path, participant, screen, output_dir)
+    run_task(config, config_path, participant, screen, data_dir)
     if FROZEN:
         click.pause("Press any key to close...")
 

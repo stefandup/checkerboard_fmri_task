@@ -8,7 +8,7 @@
 # edit causes trouble.
 #
 # Units: seconds (_s), hertz (_hz), degrees of visual angle (_deg), centimetres (_cm).
-# Luminance values are digital grey levels from 0.0 (black) to 1.0 (white), NOT cd/m².
+# Luminance values are digital grey levels from 0.0 (black) to 1.0 (white), NOT cd/m^2.
 
 [scanner]
 # pyglet key name the scanner sends as its trigger (LSHIFT = Left Shift).
@@ -63,3 +63,9 @@ screen_width_cm = 53.0          # [default: 53.0]
 expected_refresh_hz = 60.0      # [default: 60.0]
 # A frame interval longer than this many expected frame intervals counts as dropped.
 dropped_frame_factor = 1.5      # [default: 1.5]
+
+[output]
+# Folder for the event logs. The installer fills this in with the folder chosen during
+# setup. "" means Documents\checkerboard_fmri_task. Use a full path with forward slashes,
+# e.g. "D:/fmri_data". --output-dir on the command line overrides it.
+data_dir = ""                   # [default: ""]

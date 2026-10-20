@@ -29,7 +29,11 @@ installer isn't code-signed, so Windows doesn't recognise it yet.
    starts the task.
 4. **Escape** aborts at any time. The log is saved either way.
 
-Output goes to `Documents\checkerboard_fmri_task\`:
+Output goes to the data folder picked during install (default
+`Documents\checkerboard_fmri_task\`; set later with `[output] data_dir` in
+`task_config.toml`, or `--output-dir`). At launch the task shows where crash reports go; after the participant ID it checks it can
+write there. An unexpected error is shown and saved as `crash_<date-time>.txt` in the
+data folder (or `%TEMP%`), and the window stays open:
 
 - `sub-<ID>_task-checkerboard_<date-time>_events.csv`: every trigger, block start,
   reversal, dropped frame and timing warning. `task_time_s` counts from the start trigger;
@@ -90,7 +94,8 @@ Pillow, in `requirements-dev.txt`).
 ```
 
 The installer lands in `build_output\installer\`. It installs per user (no admin rights),
-and adds desktop shortcuts. A reinstall first uninstalls the old version, then replaces
+asks for the data folder (pre-filled, so Next keeps the default) and adds desktop shortcuts
+to the task, its config and the data folder. A reinstall first uninstalls the old version, then replaces
 `task_config.toml` with the shipped defaults; the previous copy is saved next to it as
 `task_config.previous.toml`.
 Versions come from git tags (`git tag v1.0.0`).

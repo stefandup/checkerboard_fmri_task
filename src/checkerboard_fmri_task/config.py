@@ -74,12 +74,19 @@ class DisplayConfig:
 
 
 @dataclass(frozen=True)
+class OutputConfig:
+    # None means the default folder (Documents\checkerboard_fmri_task).
+    data_dir: Path | None
+
+
+@dataclass(frozen=True)
 class TaskConfig:
     scanner: ScannerConfig
     paradigm: ParadigmConfig
     stimulus: StimulusConfig
     fixation: FixationConfig
     display: DisplayConfig
+    output: OutputConfig
 
 
 class _Section:
@@ -113,16 +120,16 @@ class _Section:
 
 def load_config(path: Path) -> TaskConfig:
     try:
-        with path.open("rb") as file:
-            data = tomllib.load(file)
-    except tomllib.TOMLDecodeError as e:
+        # utf-8-sig: Notepad and the installer may save the file with a byte-order mark.
+        data = tomllib.loads(path.read_text(encoding="utf-8-sig"))
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError) as e:
         raise ConfigError(f"{path} is not valid TOML: {e}") from e
     return parse_config(data)
 
 
 def parse_config(data: dict[str, Any]) -> TaskConfig:
     problems: list[str] = []
-    sections = ("scanner", "paradigm", "stimulus", "fixation", "display")
+    sections = ("scanner", "paradigm", "stimulus", "fixation", "display", "output")
     for name in sorted(set(data) - set(sections)):
         problems.append(f"[{name}] is not a known section")
 
@@ -131,6 +138,7 @@ def parse_config(data: dict[str, Any]) -> TaskConfig:
     stimulus = _Section(data, "stimulus", problems)
     fixation = _Section(data, "fixation", problems)
     display = _Section(data, "display", problems)
+    output = _Section(data, "output", problems)
 
     values = {
         "scanner": {
@@ -169,8 +177,11 @@ def parse_config(data: dict[str, Any]) -> TaskConfig:
             "expected_refresh_hz": display.get("expected_refresh_hz", float, required=False),
             "dropped_frame_factor": display.get("dropped_frame_factor", float),
         },
+        "output": {
+            "data_dir": output.get("data_dir", str, required=False),
+        },
     }
-    for section in (scanner, paradigm, stimulus, fixation, display):
+    for section in (scanner, paradigm, stimulus, fixation, display, output):
         section.check_unknown_keys()
 
     if not problems:
@@ -180,12 +191,14 @@ def parse_config(data: dict[str, Any]) -> TaskConfig:
 
     fix = values["fixation"]
     fix["color"] = tuple(float(c) for c in fix["color"])
+    data_dir = values["output"]["data_dir"]
     return TaskConfig(
         scanner=ScannerConfig(**values["scanner"]),
         paradigm=ParadigmConfig(**values["paradigm"]),
         stimulus=StimulusConfig(**values["stimulus"]),
         fixation=FixationConfig(**fix),
         display=DisplayConfig(**values["display"]),
+        output=OutputConfig(data_dir=Path(data_dir) if data_dir else None),
     )
 
 
@@ -264,4 +277,10 @@ def _check_values(values: dict[str, dict[str, Any]]) -> list[str]:
     if display["expected_refresh_hz"] is not None:
         require(display["expected_refresh_hz"] > 0, "[display] expected_refresh_hz must be > 0")
     require(display["dropped_frame_factor"] > 1, "[display] dropped_frame_factor must be > 1")
+
+    data_dir = values["output"]["data_dir"]
+    require(
+        not data_dir or Path(data_dir).is_absolute(),
+        '[output] data_dir must be a full path (e.g. "D:/fmri_data"), or "" for the default',
+    )
     return problems
